@@ -3,12 +3,12 @@ import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
 
 // Pings /auth/me on user activity to keep session unlocked when user is active.
-export default function useActivityPing({ minIntervalMs = 20000, checkIntervalMs = 15000 } = {}) {
+export default function useActivityPing({ minIntervalMs = 20000, checkIntervalMs = 15000, enabled = true } = {}) {
   const { token, fetchMe, setLocked } = useAuth()
   const lastPing = useRef(0)
 
   useEffect(() => {
-    if (!token) return
+    if (!enabled || !token) return
 
     const now = () => Date.now()
     const maybePing = () => {
@@ -49,5 +49,5 @@ export default function useActivityPing({ minIntervalMs = 20000, checkIntervalMs
       window.removeEventListener('keydown', onActivity)
       window.removeEventListener('click', onActivity)
     }
-  }, [token])
+  }, [token, enabled])
 }

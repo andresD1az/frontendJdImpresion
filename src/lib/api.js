@@ -1,4 +1,8 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
+// En desarrollo usamos el proxy de Vite (vite.config.js) con base relativa.
+// En producción usamos VITE_API_URL.
+const API_URL = import.meta.env.DEV
+  ? ''
+  : (import.meta.env.VITE_API_URL || '')
 
 export async function api(path, { method = 'GET', body, token, headers = {} } = {}) {
   const res = await fetch(`${API_URL}${path}`, {
