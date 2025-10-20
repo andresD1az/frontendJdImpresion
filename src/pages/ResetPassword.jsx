@@ -6,7 +6,9 @@ export default function ResetPassword() {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
   const [verified, setVerified] = useState(false)
@@ -91,18 +93,49 @@ export default function ResetPassword() {
           <>
             <div>
               <label className="block text-sm mb-1">Nueva contraseña</label>
-              <input className="w-full border rounded px-3 py-2" type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
+              <div className="relative">
+                <input
+                  className="w-full border rounded px-3 py-2 pr-16"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e=>setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={()=>setShowPassword(s=>!s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-white border rounded shadow-sm text-blue-700 hover:bg-blue-50"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                >
+                  {showPassword ? 'Ocultar' : 'Ver'}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-sm mb-1">Confirmar nueva contraseña</label>
-              <input className="w-full border rounded px-3 py-2" type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required />
-              {(confirmPassword && password && password.trim() !== confirmPassword.trim()) && (
+              <div className="relative">
+                <input
+                  className="w-full border rounded px-3 py-2 pr-16"
+                  type={showConfirm ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={e=>setConfirmPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={()=>setShowConfirm(s=>!s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-white border rounded shadow-sm text-blue-700 hover:bg-blue-50"
+                  aria-label={showConfirm ? 'Ocultar contraseña' : 'Ver contraseña'}
+                >
+                  {showConfirm ? 'Ocultar' : 'Ver'}
+                </button>
+              </div>
+            </div>
+            {(confirmPassword && password && password.trim() !== confirmPassword.trim()) && (
                 <div className="text-sm text-red-600 mt-1">Las contraseñas no coinciden.</div>
               )}
-            </div>
           </>
         )}
-        <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded" disabled={!email || !code || (verified && (!password || !confirmPassword || password.trim() !== confirmPassword.trim()))}> {verified ? 'Actualizar contraseña' : 'Verificar código'} </button>
       </form>
     </div>
   )

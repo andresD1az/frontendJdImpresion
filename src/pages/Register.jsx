@@ -6,8 +6,10 @@ import Turnstile from '../components/Turnstile'
 export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [fullName, setFullName] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
   const [accept, setAccept] = useState(false)
   const [error, setError] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
@@ -52,11 +54,43 @@ export default function Register() {
         </div>
         <div>
           <label className="block text-sm mb-1">Contraseña</label>
-          <input className="w-full border rounded px-3 py-2" type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
+          <div className="relative">
+            <input
+              className="w-full border rounded px-3 py-2 pr-16"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={e=>setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={()=>setShowPassword(s=>!s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-white border rounded shadow-sm text-blue-700 hover:bg-blue-50"
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {showPassword ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-sm mb-1">Confirmar contraseña</label>
-          <input className="w-full border rounded px-3 py-2" type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required />
+          <div className="relative">
+            <input
+              className="w-full border rounded px-3 py-2 pr-16"
+              type={showConfirm ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={e=>setConfirmPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={()=>setShowConfirm(s=>!s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-white border rounded shadow-sm text-blue-700 hover:bg-blue-50"
+              aria-label={showConfirm ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {showConfirm ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <input id="accept" type="checkbox" checked={accept} onChange={e=>setAccept(e.target.checked)} />

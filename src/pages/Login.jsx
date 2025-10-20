@@ -7,8 +7,10 @@ export default function Login() {
   const { login, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [turnstileToken, setTurnstileToken] = useState('')
+  const [captchaKey, setCaptchaKey] = useState(0) // force re-mount to refresh widget
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -31,7 +33,7 @@ export default function Login() {
     const res = await login({ email, password, turnstileToken })
     if (res.ok) {
       const role = res.user?.role
-      if (role === 'client') return navigate('/cliente', { replace: true })
+      if (role === 'client') return navigate('/inicio', { replace: true })
       if (role === 'manager') return navigate('/manager', { replace: true })
       if (role === 'bodega') return navigate('/bodega', { replace: true })
       if (role === 'descargue') return navigate('/descargue', { replace: true })
@@ -40,6 +42,9 @@ export default function Login() {
       navigate(from, { replace: true })
     } else {
       setError(humanize(res.error))
+      // Refresh captcha so the user can retry without reloading the page
+      setTurnstileToken('')
+      setCaptchaKey((k) => k + 1)
     }
   }
 
@@ -54,10 +59,30 @@ export default function Login() {
         </div>
         <div>
           <label className="block text-sm mb-1">Contraseña</label>
-          <input className="w-full border rounded px-3 py-2" type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
+          <div className="relative">
+            <input
+              className="w-full border rounded px-3 py-2 pr-16"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={e=>setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={()=>setShowPassword(s=>!s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-white border rounded shadow-sm text-blue-700 hover:bg-blue-50"
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {showPassword ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
+          <div className="mt-2 text-sm flex items-center gap-2">
+            <input id="showPwdLogin" type="checkbox" checked={showPassword} onChange={()=>setShowPassword(s=>!s)} />
+            <label htmlFor="showPwdLogin">Mostrar contraseña</label>
+          </div>
         </div>
         <div className="flex justify-center">
-          <Turnstile onVerify={setTurnstileToken} />
+          <Turnstile key={captchaKey} onVerify={setTurnstileToken} />
         </div>
         <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded">{loading ? 'Ingresando...' : 'Ingresar'}</button>
       </form>

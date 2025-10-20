@@ -5,8 +5,11 @@ import { api } from '../lib/api'
 export default function ChangePassword() {
   const { token } = useAuth()
   const [currentPassword, setCurrentPassword] = useState('')
+  const [showCurrent, setShowCurrent] = useState(false)
   const [newPassword, setNewPassword] = useState('')
+  const [showNew, setShowNew] = useState(false)
   const [confirm, setConfirm] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
   const [msg, setMsg] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -38,15 +41,63 @@ export default function ChangePassword() {
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm mb-1">Contraseña actual</label>
-          <input className="w-full border rounded px-3 py-2" type="password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)} required />
+          <div className="relative">
+            <input
+              className="w-full border rounded px-3 py-2 pr-16"
+              type={showCurrent ? 'text' : 'password'}
+              value={currentPassword}
+              onChange={e=>setCurrentPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={()=>setShowCurrent(s=>!s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-white border rounded shadow-sm text-blue-700 hover:bg-blue-50"
+              aria-label={showCurrent ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {showCurrent ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-sm mb-1">Nueva contraseña</label>
-          <input className="w-full border rounded px-3 py-2" type="password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} required />
+          <div className="relative">
+            <input
+              className="w-full border rounded px-3 py-2 pr-16"
+              type={showNew ? 'text' : 'password'}
+              value={newPassword}
+              onChange={e=>setNewPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={()=>setShowNew(s=>!s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-white border rounded shadow-sm text-blue-700 hover:bg-blue-50"
+              aria-label={showNew ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {showNew ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
         </div>
         <div>
           <label className="block text-sm mb-1">Confirmar nueva contraseña</label>
-          <input className="w-full border rounded px-3 py-2" type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} required />
+          <div className="relative">
+            <input
+              className="w-full border rounded px-3 py-2 pr-16"
+              type={showConfirm ? 'text' : 'password'}
+              value={confirm}
+              onChange={e=>setConfirm(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              onClick={()=>setShowConfirm(s=>!s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs px-2 py-1 bg-white border rounded shadow-sm text-blue-700 hover:bg-blue-50"
+              aria-label={showConfirm ? 'Ocultar contraseña' : 'Ver contraseña'}
+            >
+              {showConfirm ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
         </div>
         <button disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded">{loading ? 'Guardando...' : 'Guardar cambios'}</button>
       </form>
