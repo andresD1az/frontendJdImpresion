@@ -1,4 +1,4 @@
-# Frontend setup (React + Vite + Tailwind)
+# Frontend setup (React + Vite + Tailwind) Papeleria JD Impressions
 
 Commands to scaffold:
 
