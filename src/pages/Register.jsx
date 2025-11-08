@@ -92,9 +92,13 @@ export default function Register() {
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <input id="accept" type="checkbox" checked={accept} onChange={e=>setAccept(e.target.checked)} />
-          <label htmlFor="accept" className="text-sm">Acepto la política de privacidad y los términos y condiciones</label>
+        <div className="flex items-start gap-2">
+          <input id="accept" type="checkbox" className="mt-1" checked={accept} onChange={e=>setAccept(e.target.checked)} />
+          <label htmlFor="accept" className="text-sm">
+            Acepto la <a className="text-blue-700 hover:underline" href="/terminos" target="_blank" rel="noopener noreferrer">política de privacidad y los términos y condiciones</a>.
+            Entiendo que puedo solicitar la cancelación/anulación de mis datos personales escribiendo a
+            <a href="mailto:jdimpresions@gmail.com" className="text-blue-700 hover:underline"> jdimpresions@gmail.com</a>.
+          </label>
         </div>
         <div className="flex justify-center">
           <Turnstile onVerify={setTurnstileToken} />

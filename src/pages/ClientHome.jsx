@@ -72,7 +72,7 @@ export default function ClientHome() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {best.map(p => (
-              <div key={p.id} className="bg-white rounded-xl border overflow-hidden hover:shadow transition">
+              <a key={p.id} href={`/producto/${p.sku}`} className="bg-white rounded-xl border overflow-hidden hover:shadow transition block">
                 <div className="aspect-[4/3] bg-gray-100">
                   {p.image_url ? (
                     <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
@@ -82,48 +82,18 @@ export default function ClientHome() {
                 </div>
                 <div className="p-4">
                   <div className="text-xs text-gray-500">{p.brand || 'Marca'}</div>
-                  <div className="font-medium line-clamp-2">{p.name}</div>
+                  <div className="font-medium line-clamp-2 hover:underline">{p.name}</div>
                   <div className="mt-1 text-sm text-gray-600">{p.category || '-'}</div>
                   <div className="mt-2 font-semibold">${Number(p.price||0).toLocaleString('es-CO')} <span className="text-xs text-gray-500">IVA incl.</span></div>
                 </div>
-              </div>
+              </a>
             ))}
-            {best.length===0 && <div className="text-gray-600">Sin productos</div>}
           </div>
         )}
+        {best.length===0 && <div className="text-gray-600">Sin productos</div>}
       </section>
 
-      {/* Footer */}
-      <footer className="border-t py-8 text-sm text-gray-600">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div>
-            <div className="font-semibold mb-2">JD Impressions</div>
-            <div>support@jdimpressions.com</div>
-          </div>
-          <div>
-            <div className="font-semibold mb-2">Shop</div>
-            <ul className="space-y-1">
-              <li><a href="/tienda" className="hover:underline">Productos</a></li>
-              <li><a href="/mis-pedidos" className="hover:underline">Mis pedidos</a></li>
-            </ul>
-          </div>
-          <div>
-            <div className="font-semibold mb-2">Soporte</div>
-            <ul className="space-y-1">
-              <li>WhatsApp</li>
-              <li>Política de devoluciones</li>
-            </ul>
-          </div>
-          <div>
-            <div className="font-semibold mb-2">Legal</div>
-            <ul className="space-y-1">
-              <li>Privacidad</li>
-              <li>Términos</li>
-            </ul>
-          </div>
-        </div>
-        <div className="mt-6">© 2025 JD Impressions. All rights reserved.</div>
-      </footer>
+      {/* Footer removido: lo provee ClientShell */}
     </div>
   )
 }

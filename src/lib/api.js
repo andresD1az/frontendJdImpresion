@@ -1,11 +1,9 @@
-// En desarrollo usamos el proxy de Vite (vite.config.js) con base relativa.
-// En producción usamos VITE_API_URL.
-const API_URL = import.meta.env.DEV
-  ? ''
-  : (import.meta.env.VITE_API_URL || '')
+// En desarrollo usamos base relativa (Vite proxy).
+// En producción usamos VITE_API_URL o por defecto '/api' para ir vía Nginx al backend.
+export const API_BASE = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || '/api')
 
 export async function api(path, { method = 'GET', body, token, headers = {} } = {}) {
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 
-const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
+const SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAB7_J30AoQN278gb'
 let turnstileLoaded = false
 let loadingPromise = null
 

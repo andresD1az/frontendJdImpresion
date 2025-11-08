@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 
 export default function StoreCatalog() {
+  const params = useParams()
   const [sp, setSp] = useSearchParams()
   const [q, setQ] = useState(sp.get('q') || sp.get('search') || '')
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
-  const [cat, setCat] = useState(sp.get('category') || '')
+  const [cat, setCat] = useState(params.categoria || sp.get('category') || '')
   const [brand, setBrand] = useState(sp.get('brand') || '')
   const [onlyAvail, setOnlyAvail] = useState(sp.get('inStock') === 'true')
   const [minP, setMinP] = useState(Number(sp.get('minPrice')||0))
@@ -35,6 +36,20 @@ export default function StoreCatalog() {
 
   useEffect(()=>{ (async()=>{ try{ const r=await api('/store/categories'); setCats(r?.categories||[]) }catch{} })() }, [])
   useEffect(()=>{ load() }, [])
+
+  // Sync category with path param changes
+  useEffect(()=>{
+    if (params.categoria && params.categoria !== cat) {
+      setCat(params.categoria)
+    }
+    if (!params.categoria && cat && sp.get('category') !== cat) {
+      // Ensure search param reflects selected category when not in path
+      const p = new URLSearchParams(sp)
+      if (cat) p.set('category', cat); else p.delete('category')
+      setSp(p, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.categoria])
 
   const addToCart = (sku) => {
     const key = 'cart'

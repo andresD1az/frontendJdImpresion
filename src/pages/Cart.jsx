@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 export default function Cart() {
   const key = 'cart'
   const { token, user } = useAuth()
+  const navigate = useNavigate()
   const [items, setItems] = useState([]) // [{ sku, quantity }]
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
@@ -76,6 +78,12 @@ export default function Cart() {
   const checkout = async () => {
     setMsg(''); setErr('')
     try {
+      // Forzar autenticación antes de proceder al pago
+      if (!token) {
+        const next = encodeURIComponent('/carrito')
+        navigate(`/login?next=${next}`)
+        return
+      }
       // Validación de campos obligatorios con mensajes por campo
       const em = {}
       if (!String(form.fullName||'').trim()) em.fullName = 'Ingresa tu nombre completo'
@@ -138,7 +146,7 @@ export default function Cart() {
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-semibold">Checkout</h1>
       </div>
-      {(msg||err) && (
+      {(msg||err || !token) && (
         <div className={`mb-3 border rounded px-3 py-2 flex items-start gap-2 ${err?'border-red-200 bg-red-50 text-red-700':'border-green-200 bg-green-50 text-green-700'}`}>
           <div className="mt-0.5">
             {err ? (
@@ -148,8 +156,8 @@ export default function Cart() {
             )}
           </div>
           <div>
-            <div className="font-medium">{err ? 'Falta información' : 'Listo'}</div>
-            <div className="text-sm">{err || msg}</div>
+            <div className="font-medium">{err ? 'Falta información' : (!token ? 'Sesión requerida' : 'Listo')}</div>
+            <div className="text-sm">{err || (!token ? 'Inicia sesión para completar tu compra.' : msg)}</div>
           </div>
           {err && Object.keys(errors||{}).length>0 && (
             <ul className="mt-1 text-sm list-disc list-inside">
@@ -246,7 +254,7 @@ export default function Cart() {
               <div className="font-semibold mb-3">Resumen de pedido</div>
               <div className="text-sm text-gray-600">Ítems: {items.reduce((a,b)=>a+Number(b.quantity||0),0)}</div>
               <div className="mt-1 text-sm text-gray-600">Subtotal: ${Number(total||0).toLocaleString('es-CO')}</div>
-              <button className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded" onClick={checkout}>Confirmar orden</button>
+              <button className="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded" onClick={checkout}>{token ? 'Confirmar orden' : 'Iniciar sesión para pagar'}</button>
             </div>
           </div>
         </div>

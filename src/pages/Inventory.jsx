@@ -7,7 +7,7 @@ export default function Inventory() {
   const [q, setQ] = useState('')
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(true)
-  const [form, setForm] = useState({ sku:'', name:'', category:'', unit:'', purchase_price:'', margin_percent:'', discount_percent:'' })
+  const [form, setForm] = useState({ sku:'', name:'', category:'', unit:'', purchase_price:'', margin_percent:'', discount_percent:'', sale_price_cop:'', description:'', image_url:'', image_urls_text:'', attributes_text:'' })
   const [editingId, setEditingId] = useState('')
   const [editDraft, setEditDraft] = useState(null)
   const [msg, setMsg] = useState('')
@@ -18,10 +18,83 @@ export default function Inventory() {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historyRows, setHistoryRows] = useState([])
   const [historyTitle, setHistoryTitle] = useState('')
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [detailsProduct, setDetailsProduct] = useState(null)
+  const [detailsDraft, setDetailsDraft] = useState({ description:'', image_url:'', image_urls_text:'', attributes_text:'' })
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [bulkAction, setBulkAction] = useState('') // publish|draft|trash|delete|discount
+  const [bulkDiscount, setBulkDiscount] = useState('')
 
   const fmtCOP = (n) => {
     const num = Number(n||0)
     return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
+  }
+
+  const toggleSelectAll = (checked) => {
+    if (checked) setSelectedIds(new Set(list.map(p=>p.id)))
+    else setSelectedIds(new Set())
+  }
+  const toggleSelectOne = (id, checked) => {
+    setSelectedIds(prev=>{ const s = new Set(prev); if (checked) s.add(id); else s.delete(id); return s })
+  }
+  const runBulk = async () => {
+    const ids = Array.from(selectedIds)
+    if (!ids.length) return alert('Selecciona al menos un producto')
+    try {
+      if (bulkAction === 'delete') {
+        const ok = confirm(`Eliminar permanentemente ${ids.length} producto(s)?`)
+        if (!ok) return
+        await Promise.all(ids.map(id => api(`/manager/products/${id}`, { method:'DELETE', token })))
+      } else if (bulkAction === 'trash') {
+        await Promise.all(ids.map(id => api(`/manager/products/${id}`, { method:'PATCH', token, body: { status: 'trash' } })))
+      } else if (bulkAction === 'publish') {
+        await Promise.all(ids.map(id => api(`/manager/products/${id}`, { method:'PATCH', token, body: { status: 'published' } })))
+      } else if (bulkAction === 'draft') {
+        await Promise.all(ids.map(id => api(`/manager/products/${id}`, { method:'PATCH', token, body: { status: 'draft' } })))
+      } else if (bulkAction === 'discount') {
+        const v = Number(bulkDiscount)
+        if (!Number.isFinite(v) || v < 0) return alert('Descuento inválido')
+        await Promise.all(ids.map(id => api(`/manager/products/${id}`, { method:'PATCH', token, body: { discount_percent: v } })))
+      } else {
+        return alert('Selecciona una acción')
+      }
+      setSelectedIds(new Set())
+      setBulkAction('')
+      setBulkDiscount('')
+      load()
+    } catch (e) {
+      const msg = (e && (e.message || e.error || e.statusText)) || 'No se pudo aplicar la acción masiva'
+      alert(msg)
+    }
+  }
+
+  const openDetails = (p) => {
+    setDetailsProduct(p)
+    setDetailsDraft({
+      description: p.description || '',
+      image_url: p.image_url || '',
+      image_urls_text: Array.isArray(p.image_urls) ? p.image_urls.join('\n') : '',
+      attributes_text: p.attributes ? JSON.stringify(p.attributes, null, 2) : ''
+    })
+    setDetailsOpen(true)
+  }
+
+  const saveDetails = async () => {
+    if (!detailsProduct) return
+    const imagesArr = (detailsDraft.image_urls_text || '')
+      .split(/\n|,/).map(s=>s.trim()).filter(Boolean)
+    let attrsObj
+    try { attrsObj = detailsDraft.attributes_text ? JSON.parse(detailsDraft.attributes_text) : undefined } catch {
+      alert('JSON de características inválido'); return
+    }
+    await update(detailsProduct.id, {
+      description: detailsDraft.description,
+      image_url: detailsDraft.image_url,
+      image_urls: imagesArr.length ? imagesArr : [],
+      attributes: attrsObj || null,
+    })
+    setDetailsOpen(false)
+    setDetailsProduct(null)
   }
   const fmtDate = (s) => {
     if (!s) return ''
@@ -98,14 +171,20 @@ export default function Inventory() {
     e.preventDefault()
     setMsg(''); setError('')
     try {
+      const imagesArr = (form.image_urls_text || '')
+        .split(/\n|,/).map(s=>s.trim()).filter(Boolean)
+      let attrsObj
+      try { attrsObj = form.attributes_text ? JSON.parse(form.attributes_text) : undefined } catch { attrsObj = undefined }
       await api('/manager/products', { method:'POST', token, body: {
         ...form,
         purchase_price: Number(form.purchase_price)||0,
         margin_percent: Number(form.margin_percent)||0,
         discount_percent: Number(form.discount_percent)||0,
         sale_price_cop: form.sale_price_cop !== '' && form.sale_price_cop !== undefined ? Number(form.sale_price_cop)||0 : undefined,
+        image_urls: imagesArr.length ? imagesArr : undefined,
+        attributes: attrsObj,
       } })
-      setForm({ sku:'', name:'', category:'', unit:'', purchase_price:'', margin_percent:'', discount_percent:'', sale_price_cop:'' })
+      setForm({ sku:'', name:'', category:'', unit:'', purchase_price:'', margin_percent:'', discount_percent:'', sale_price_cop:'', description:'', image_url:'', image_urls_text:'', attributes_text:'' })
       setMsg('Producto guardado')
       load()
     } catch (e) { setError('No se pudo guardar') }
@@ -116,57 +195,48 @@ export default function Inventory() {
     load()
   }
 
-  const startEdit = (p) => {
-    setEditingId(p.id)
-    setEditDraft({
-      name: p.name || '',
-      category: p.category || '',
-      unit: p.unit || '',
-      purchase_price: Number(p.purchase_price||0),
-      margin_percent: Number(p.margin_percent||0),
-      discount_percent: Number(p.discount_percent||0),
-      sale_price_cop: Number(p.sale_price_cop||0),
-      price_locked: !!p.price_locked,
-      stock_bodega: Number(p.stock_bodega||0),
-      stock_surtido: Number(p.stock_surtido||0),
-      original_total: Number(p.stock_total||0),
-    })
-  }
-
-  const saveEdit = async (id) => {
-    if (!editDraft) return
-    await update(id, {
-      name: editDraft.name,
-      category: editDraft.category,
-      unit: editDraft.unit,
-      purchase_price: Number(editDraft.purchase_price)||0,
-      margin_percent: Number(editDraft.margin_percent)||0,
-      discount_percent: Number(editDraft.discount_percent)||0,
-      sale_price_cop: Number(editDraft.sale_price_cop)||0,
-      price_locked: editDraft.price_locked,
-    })
-    // Aplicar ajustes de stock (ajuste fija valor exacto)
-    const prod = list.find(x=>x.id===id)
-    if (prod) {
-      const desiredB = Number(editDraft.stock_bodega)
-      const desiredS = Number(editDraft.stock_surtido)
-      if (Number.isFinite(desiredB) && desiredB !== Number(prod.stock_bodega||0)) {
-        await api('/manager/inventory/movement', { method:'POST', token, body: { sku: prod.sku, area: 'bodega', type: 'ajuste', quantity: desiredB, reason: 'inventory_edit_set' } })
-      }
-      if (Number.isFinite(desiredS) && desiredS !== Number(prod.stock_surtido||0)) {
-        await api('/manager/inventory/movement', { method:'POST', token, body: { sku: prod.sku, area: 'surtido', type: 'ajuste', quantity: desiredS, reason: 'inventory_edit_set' } })
-      }
-    }
-    setEditingId('')
-    setEditDraft(null)
-  }
-
-  const cancelEdit = () => { setEditingId(''); setEditDraft(null) }
+  // Edición inline deshabilitada: usamos editor dedicado
+  const startEdit = () => {}
+  const saveEdit = async () => {}
+  const cancelEdit = () => {}
 
   const removeItem = async (id) => {
     if (!confirm('¿Eliminar producto?')) return
     await api(`/manager/products/${id}`, { method:'DELETE', token })
     load()
+  }
+
+  const duplicateItem = async (p) => {
+    try {
+      const base = await api(`/manager/products/${p.id}`, { token })
+      const copy = base.product || p
+      const newSku = `${copy.sku}-COPY-${Math.floor(Math.random()*1000)}`
+      await api('/manager/products', { method:'POST', token, body: {
+        sku: newSku,
+        name: `${copy.name} (copia)`,
+        category: copy.category,
+        unit: copy.unit,
+        purchase_price: copy.purchase_price,
+        margin_percent: copy.margin_percent,
+        discount_percent: copy.discount_percent,
+        sale_price_cop: copy.sale_price_cop,
+        description: copy.description,
+        image_url: copy.image_url,
+        image_urls: copy.image_urls,
+        attributes: copy.attributes,
+        status: 'draft'
+      } })
+      alert('Duplicado en borrador')
+      load()
+    } catch (e) { alert('No se pudo duplicar') }
+  }
+
+  const moveToTrash = async (p) => {
+    if (!confirm('Mover a la papelera?')) return
+    try {
+      await api(`/manager/products/${p.id}`, { method:'PATCH', token, body: { status: 'trash' } })
+      load()
+    } catch (e) { alert('No se pudo mover a papelera') }
   }
 
   const getAreaStock = (p, area) => area==='bodega' ? Number(p.stock_bodega||0) : Number(p.stock_surtido||0)
@@ -221,28 +291,9 @@ export default function Inventory() {
   return (
     <div className="max-w-6xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Inventario (Productos)</h1>
-      <div className="bg-white rounded shadow p-4 mb-4">
-        <form className="grid grid-cols-1 md:grid-cols-4 gap-3" onSubmit={save}>
-          <input className="border rounded px-3 py-2" placeholder="SKU" value={form.sku} onChange={e=>setForm({...form, sku:e.target.value})} required />
-          <input className="border rounded px-3 py-2" placeholder="Nombre" value={form.name} onChange={e=>setForm({...form, name:e.target.value})} required />
-          <input className="border rounded px-3 py-2" placeholder="Categoría" value={form.category} onChange={e=>setForm({...form, category:e.target.value})} />
-          <input className="border rounded px-3 py-2" placeholder="Unidad" value={form.unit} onChange={e=>setForm({...form, unit:e.target.value})} />
-          <input className="border rounded px-3 py-2" placeholder="Compra" type="number" min="0" value={form.purchase_price} onChange={e=>setForm({...form, purchase_price:e.target.value})} />
-          <input className="border rounded px-3 py-2" placeholder="Ganancia %" type="number" min="0" value={form.margin_percent} onChange={e=>setForm({...form, margin_percent:e.target.value})} />
-          <input className="border rounded px-3 py-2" placeholder="Descuento %" type="number" min="0" value={form.discount_percent} onChange={e=>setForm({...form, discount_percent:e.target.value})} />
-          <div className="flex items-center gap-2">
-            <input className="border rounded px-3 py-2 w-full" placeholder="Venta (COP) opcional" type="number" min="0" value={form.sale_price_cop||''} onChange={e=>setForm({...form, sale_price_cop:e.target.value})} />
-            <button type="button" className="border rounded px-2 py-1 text-sm" onClick={()=>{
-              const net = netFrom(form.purchase_price, form.margin_percent, form.discount_percent)
-              setForm(f=>({ ...f, sale_price_cop: round1000(net) }))
-            }}>Recalcular</button>
-          </div>
-          <div className="md:col-span-4 flex gap-2">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">Guardar</button>
-            {msg && <span className="text-green-700">{msg}</span>}
-            {error && <span className="text-red-600">{error}</span>}
-          </div>
-        </form>
+      <div className="bg-white rounded shadow p-4 mb-4 flex items-center justify-between">
+        <div className="text-lg font-semibold">Productos</div>
+        <a href="/admin/productos/nuevo" className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded">Nuevo producto</a>
       </div>
 
       <div className="bg-white rounded shadow p-4">
@@ -251,10 +302,24 @@ export default function Inventory() {
             {opErr || opMsg}
           </div>
         )}
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-2 mb-3 flex-wrap items-center">
           <input className="border rounded px-3 py-2 flex-1" placeholder="Buscar por SKU o nombre" value={q} onChange={e=>setQ(e.target.value)} />
           <button className="border rounded px-3 py-2" onClick={load}>Buscar</button>
           <button className="border rounded px-3 py-2" onClick={async()=>{ await api('/manager/products/populate-from-movements', { method:'POST', token }); load() }}>Poblar desde movimientos</button>
+          <div className="ml-auto flex gap-2 items-center">
+            <select className="border rounded px-2 py-2" value={bulkAction} onChange={e=>setBulkAction(e.target.value)}>
+              <option value="">Acción masiva</option>
+              <option value="publish">Publicar</option>
+              <option value="draft">Pasar a borrador</option>
+              <option value="trash">Mover a papelera</option>
+              <option value="delete">Eliminar permanente</option>
+              <option value="discount">Aplicar descuento %</option>
+            </select>
+            {bulkAction==='discount' && (
+              <input className="border rounded px-2 py-2 w-28" type="number" placeholder="%" value={bulkDiscount} onChange={e=>setBulkDiscount(e.target.value)} />
+            )}
+            <button className="bg-gray-800 text-white rounded px-3 py-2" onClick={runBulk}>Aplicar</button>
+          </div>
         </div>
         {listError && <div className="mb-2 text-red-600">{listError}</div>}
         {loading ? 'Cargando...' : (
@@ -262,6 +327,9 @@ export default function Inventory() {
             <table className="min-w-full">
               <thead>
                 <tr className="text-left text-sm text-gray-600">
+                  <th className="py-1 pr-3">
+                    <input type="checkbox" checked={selectedIds.size===list.length && list.length>0} onChange={e=>toggleSelectAll(e.target.checked)} />
+                  </th>
                   <th className="py-1 pr-3">SKU</th>
                   <th className="py-1 pr-3">Nombre</th>
                   <th className="py-1 pr-3">Categoría</th>
@@ -280,93 +348,29 @@ export default function Inventory() {
               <tbody>
                 {list.map(p => (
                   <tr key={p.id} className="border-t">
+                    <td className="py-2 pr-3"><input type="checkbox" checked={selectedIds.has(p.id)} onChange={e=>toggleSelectOne(p.id, e.target.checked)} /></td>
                     <td className="py-2 pr-3">{p.sku}</td>
-                    <td className="py-2 pr-3">
-                      {editingId===p.id ? (
-                        <input className="border rounded px-2 py-1" value={editDraft?.name||''} onChange={e=>setEditDraft({...editDraft, name:e.target.value})} />
-                      ) : p.name}
-                    </td>
-                    <td className="py-2 pr-3">
-                      {editingId===p.id ? (
-                        <input className="border rounded px-2 py-1" value={editDraft?.category||''} onChange={e=>setEditDraft({...editDraft, category:e.target.value})} />
-                      ) : (p.category||'-')}
-                    </td>
-                    <td className="py-2 pr-3">
-                      {editingId===p.id ? (
-                        <input className="border rounded px-2 py-1" value={editDraft?.unit||''} onChange={e=>setEditDraft({...editDraft, unit:e.target.value})} />
-                      ) : (p.unit||'-')}
-                    </td>
-                    <td className="py-2 pr-3">{editingId===p.id ? (
-                        <input className="border rounded px-2 py-1" type="number" value={editDraft?.purchase_price??0} onChange={e=>setEditDraft({...editDraft, purchase_price:e.target.value})} />
-                      ) : fmtCOP(p.purchase_price) }
-                    </td>
-                    <td className="py-2 pr-3">{editingId===p.id ? (
-                        <input className="border rounded px-2 py-1" type="number" value={editDraft?.margin_percent??0} onChange={e=>setEditDraft({...editDraft, margin_percent:e.target.value})} />
-                      ) : (Number(p.margin_percent||0).toFixed(2))}
-                    </td>
-                    <td className="py-2 pr-3">{editingId===p.id ? (
-                        <input className="border rounded px-2 py-1" type="number" value={editDraft?.discount_percent??0} onChange={e=>setEditDraft({...editDraft, discount_percent:e.target.value})} />
-                      ) : (Number(p.discount_percent||0).toFixed(2))}
-                    </td>
-                    {(()=>{ const net = netFrom(editingId===p.id?editDraft?.purchase_price:p.purchase_price, editingId===p.id?editDraft?.margin_percent:p.margin_percent, editingId===p.id?editDraft?.discount_percent:p.discount_percent); return (
+                    <td className="py-2 pr-3">{p.name}</td>
+                    <td className="py-2 pr-3">{p.category||'-'}</td>
+                    <td className="py-2 pr-3">{p.unit||'-'}</td>
+                    <td className="py-2 pr-3">{fmtCOP(p.purchase_price)}</td>
+                    <td className="py-2 pr-3">{Number(p.margin_percent||0).toFixed(2)}</td>
+                    <td className="py-2 pr-3">{Number(p.discount_percent||0).toFixed(2)}</td>
+                    {(()=>{ const net = netFrom(p.purchase_price, p.margin_percent, p.discount_percent); return (
                       <td className="py-2 pr-3"><span title="Calculado automáticamente">{fmtCOP(net)}</span><span className="ml-1 text-xs text-gray-500">auto</span></td>
                     ) })()}
-                    <td className="py-2 pr-3">
-                      {editingId===p.id ? (
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <input className="border rounded px-2 py-1 w-32" type="number" value={editDraft?.sale_price_cop??0} onChange={e=>setEditDraft({...editDraft, sale_price_cop:e.target.value})} />
-                          <button className="border rounded px-2 py-1 text-sm" title="Redondear al múltiplo de 1.000" onClick={()=>{
-                            const net = netFrom(editDraft?.purchase_price, editDraft?.margin_percent, editDraft?.discount_percent)
-                            setEditDraft(d=>({ ...d, sale_price_cop: round1000(net) }))
-                          }}>Recalcular</button>
-                          {String(user?.role||'').toLowerCase()==='manager' && (
-                            <label className="inline-flex items-center gap-2 text-sm">
-                              <input type="checkbox" checked={!!editDraft?.price_locked} onChange={e=>setEditDraft(d=>({ ...d, price_locked: e.target.checked }))} />
-                              <span>Bloquear precio (solo gerente)</span>
-                            </label>
-                          )}
-                        </div>
-                      ) : fmtCOP(p.sale_price_cop) }
-                    </td>
-                    <td className="py-2 pr-3">
-                      {editingId===p.id ? (
-                        <input className="border rounded px-2 py-1 w-24" type="number" value={editDraft?.stock_bodega??0} onChange={e=>handleStockChange('stock_bodega', e.target.value)} />
-                      ) : fmtCOP(p.stock_bodega)}
-                    </td>
-                    <td className="py-2 pr-3">
-                      {editingId===p.id ? (
-                        <input className="border rounded px-2 py-1 w-24" type="number" value={editDraft?.stock_surtido??0} onChange={e=>handleStockChange('stock_surtido', e.target.value)} />
-                      ) : fmtCOP(p.stock_surtido)}
-                    </td>
-                    <td className="py-2 pr-3">
-                      <div>{fmtCOP(editingId===p.id ? Number(editDraft?.stock_bodega||0)+Number(editDraft?.stock_surtido||0) : p.stock_total)}</div>
-                      {editingId===p.id && (
-                        <div className="mt-1 flex items-center gap-2 text-xs text-gray-700">
-                          <input className="border rounded px-2 py-1 w-24" type="number" placeholder="± total (bodega)" value={editDraft?.totalDelta||''} onChange={e=>setEditDraft({...editDraft, totalDelta:e.target.value})} />
-                          <button
-                            type="button"
-                            className="border rounded px-2 py-1 disabled:opacity-50"
-                            disabled={!Number(editDraft?.totalDelta)||Number(editDraft?.totalDelta)===0}
-                            onClick={(e)=>{ e.preventDefault(); e.stopPropagation(); applyTotalDelta(p) }}
-                          >Aplicar</button>
-                        </div>
-                      )}
-                    </td>
+                    <td className="py-2 pr-3">{fmtCOP(p.sale_price_cop)}</td>
+                    <td className="py-2 pr-3">{fmtCOP(p.stock_bodega)}</td>
+                    <td className="py-2 pr-3">{fmtCOP(p.stock_surtido)}</td>
+                    <td className="py-2 pr-3">{fmtCOP(p.stock_total)}</td>
                     <td className="py-2">
-                      {editingId===p.id ? (
-                        <>
-                          <button className="text-green-700 mr-2" onClick={()=>saveEdit(p.id)}>Guardar</button>
-                          <button className="text-gray-600 mr-2" onClick={cancelEdit}>Cancelar</button>
-                        </>
-                      ) : (
-                        <>
-                          <button className="text-blue-700 mr-2" onClick={()=>startEdit(p)}>Editar</button>
-                          {String(user?.role||'').toLowerCase()==='manager' && (
-                            <button className="text-gray-700 mr-2" onClick={()=>openHistory(p)}>Historial</button>
-                          )}
-                        </>
-                      )}
-                      <button className="text-red-700" onClick={()=>removeItem(p.id)}>Eliminar</button>
+                      <div className="flex flex-wrap items-center gap-3 text-sm">
+                        <a className="text-gray-700" href={p.slug?`/tienda/${p.slug}`:`/producto/${p.sku}`} target="_blank" rel="noreferrer">Ver</a>
+                        <a className="text-blue-700" href={`/admin/productos/${p.id}/editar`}>Editar</a>
+                        <button className="text-indigo-700" onClick={()=>duplicateItem(p)}>Duplicar</button>
+                        <button className="text-gray-700" onClick={()=>openHistory(p)}>Historial</button>
+                        <button className="text-red-700" onClick={()=>moveToTrash(p)}>Papelera</button>
+                      </div>
                     </td>
                   </tr>
                 ))}

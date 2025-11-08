@@ -19,9 +19,11 @@ import ProtectedRoute from '../components/ProtectedRoute.jsx'
 import useActivityPing from '../hooks/useActivityPing.js'
 import Profile from '../pages/Profile.jsx'
 import Inventory from '../pages/Inventory.jsx'
+import ProductEditor from '../pages/ProductEditor.jsx'
 import AccessibilityToolbar from '../components/AccessibilityToolbar.jsx'
 import StoreCatalog from '../pages/StoreCatalog.jsx'
 import Cart from '../pages/Cart.jsx'
+import ProductDetailSlug from '../pages/ProductDetailSlug.jsx'
 import MyOrders from '../pages/MyOrders.jsx'
 import Operativo from '../pages/Operativo.jsx'
 import Ventas from '../pages/Ventas.jsx'
@@ -32,6 +34,7 @@ import ClientReturns from '../pages/ClientReturns.jsx'
 import ProductDetail from '../pages/ProductDetail.jsx'
 import PermissionGuard from '../app/router/guards/PermissionGuard.jsx'
 import PermAny from '../app/router/guards/PermAny.jsx'
+import Terms from '../pages/Terms.jsx'
 
 function Nav() {
   const { token, user, logout } = useAuth()
@@ -120,7 +123,7 @@ function AdminNav() {
   const itemsBase = []
   if (role === 'manager' || can('report:view')) itemsBase.push({ label: 'Inicio', to: '/manager' })
   if (role === 'manager' || can('user:manage')) itemsBase.push({ label: 'Empleados', to: '/admin/empleados' })
-  if (role === 'manager' || can('inventory:view')) itemsBase.push({ label: 'Inventario', to: '/inventario' })
+  if (role === 'manager' || can('inventory:view')) itemsBase.push({ label: 'Productos', to: '/admin/productos' })
   if (role === 'manager') itemsBase.push({ label: 'Operativo', to: '/operativo' })
   if (role === 'manager' || can('product:view')) itemsBase.push({ label: 'Ventas', to: '/ventas' })
   if (role === 'manager' || can('payment:reconcile') || can('invoice:emit')) itemsBase.push({ label: 'Caja', to: '/caja' })
@@ -142,10 +145,10 @@ function AdminNav() {
   return (
     <nav className="p-4 flex items-center justify-between bg-white shadow">
       <div className="flex gap-6 items-center">
-        <a className="font-semibold" href={items[0]?.to || '/dashboard'}>Panel</a>
+        <Link className="font-semibold" to={items[0]?.to || '/dashboard'}>Panel</Link>
         {token && (
           <div className="hidden md:flex items-center gap-4 text-sm">
-            {items.map(it => (<a key={it.to} href={it.to} className="hover:underline">{it.label}</a>))}
+            {items.map(it => (<Link key={it.to} to={it.to} className="hover:underline">{it.label}</Link>))}
           </div>
         )}
       </div>
@@ -164,8 +167,8 @@ function AdminNav() {
             </button>
             {open && (
               <div role="menu" className="absolute right-0 mt-2 w-48 bg-white rounded shadow-lg border">
-                <a role="menuitem" className="block px-3 py-2 hover:bg-gray-50" href="/profile" onClick={()=>setOpen(false)}>Perfil</a>
-                <a role="menuitem" className="block px-3 py-2 hover:bg-gray-50" href="/settings/password" onClick={()=>setOpen(false)}>Cambiar contraseña</a>
+                <Link role="menuitem" className="block px-3 py-2 hover:bg-gray-50" to="/profile" onClick={()=>setOpen(false)}>Perfil</Link>
+                <Link role="menuitem" className="block px-3 py-2 hover:bg-gray-50" to="/settings/password" onClick={()=>setOpen(false)}>Cambiar contraseña</Link>
                 <button role="menuitem" className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600" onClick={()=>{ setOpen(false); logout() }}>Cerrar sesión</button>
               </div>
             )}
@@ -178,8 +181,12 @@ function AdminNav() {
 
 export function ClientShell({ children }) {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [q, setQ] = useState('')
   const [cartCount, setCartCount] = useState(0)
+  // User menu state (avatar dropdown)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
   useEffect(() => {
     const read = () => {
       try { const raw = localStorage.getItem('cart'); const arr = raw? JSON.parse(raw):[]; setCartCount(arr.reduce((a,b)=>a+Number(b.quantity||0),0)) } catch { setCartCount(0) }
@@ -189,6 +196,8 @@ export function ClientShell({ children }) {
     const onCustom = () => read()
     window.addEventListener('storage', onStorage)
     window.addEventListener('cart-updated', onCustom)
+    const onDocClick = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false) }
+    document.addEventListener('mousedown', onDocClick)
     return () => { window.removeEventListener('storage', onStorage); window.removeEventListener('cart-updated', onCustom) }
   }, [])
   const goSearch = () => navigate(`/tienda${q?`?q=${encodeURIComponent(q)}`:''}`)
@@ -197,11 +206,14 @@ export function ClientShell({ children }) {
       <header className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <a href="/inicio" className="font-semibold text-lg">JD Impressions</a>
+            <Link to="/inicio" className="font-semibold text-lg">JD Impressions</Link>
             <nav className="hidden md:flex items-center gap-4 text-sm text-gray-700">
-              <a href="/tienda" className="hover:text-blue-700">Productos</a>
-              <a href="/mis-pedidos" className="hover:text-blue-700">Mis pedidos</a>
-              <a href="/mis-devoluciones" className="hover:text-blue-700">Mis devoluciones</a>
+              <Link to="/tienda" className="hover:text-blue-700">Tienda</Link>
+              <Link to="/tienda/escuela" className="hover:text-blue-700">escuela</Link>
+              <Link to="/tienda/arte" className="hover:text-blue-700">arte</Link>
+              <Link to="/tienda/oficina" className="hover:text-blue-700">oficina</Link>
+              <Link to="/tienda/tecnologia" className="hover:text-blue-700">tecnología</Link>
+              <Link to="/tienda/papeleria" className="hover:text-blue-700">papelería</Link>
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -209,12 +221,50 @@ export function ClientShell({ children }) {
               <input className="border rounded px-3 py-1.5 w-64" placeholder="Buscar productos..." value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&goSearch()} />
               <button className="border rounded px-3 py-1.5 hover:bg-gray-50" onClick={goSearch}>Buscar</button>
             </div>
-            <a href="/carrito" className="relative border rounded px-3 py-1.5 hover:bg-gray-50">
+            <Link to="/carrito" className="relative border rounded px-3 py-1.5 hover:bg-gray-50">
               Carrito
               {cartCount>0 && (
                 <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full px-1.5 py-0.5">{cartCount}</span>
               )}
-            </a>
+            </Link>
+            {!user && (
+              <Link to="/login" className="border rounded px-3 py-1.5 hover:bg-gray-50">Iniciar sesión</Link>
+            )}
+            {user && (
+              <div className="relative" ref={menuRef}>
+                <button
+                  className="flex items-center gap-2 border rounded px-2 py-1.5 hover:bg-gray-50"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  onClick={()=>setMenuOpen(o=>!o)}
+                >
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-semibold">
+                      {(user?.full_name || user?.email || 'U').slice(0,1).toUpperCase()}
+                    </div>
+                  )}
+                  <span className="hidden sm:block text-sm">{user?.full_name || user?.email}</span>
+                </button>
+                {menuOpen && (
+                  <div role="menu" className="absolute right-0 mt-2 w-56 bg-white rounded shadow-lg border z-20">
+                    <div className="px-3 py-2 text-xs text-gray-500">Cuenta</div>
+                    {user?.role?.toLowerCase?.() === 'manager' && (
+                      <Link role="menuitem" to="/manager" className="block px-3 py-2 hover:bg-gray-50" onClick={()=>setMenuOpen(false)}>Panel gerente</Link>
+                    )}
+                    <Link role="menuitem" to="/cuenta" className="block px-3 py-2 hover:bg-gray-50" onClick={()=>setMenuOpen(false)}>Área personal</Link>
+                    <Link role="menuitem" to="/mis-pedidos" className="block px-3 py-2 hover:bg-gray-50" onClick={()=>setMenuOpen(false)}>Mis compras</Link>
+                    <Link role="menuitem" to="/mis-facturas" className="block px-3 py-2 hover:bg-gray-50" onClick={()=>setMenuOpen(false)}>Mis facturas</Link>
+                    <Link role="menuitem" to="/mis-devoluciones" className="block px-3 py-2 hover:bg-gray-50" onClick={()=>setMenuOpen(false)}>Mis devoluciones</Link>
+                    <Link role="menuitem" to="/cuenta/password" className="block px-3 py-2 hover:bg-gray-50" onClick={()=>setMenuOpen(false)}>Cambiar contraseña</Link>
+                    <Link role="menuitem" to="/terminos" className="block px-3 py-2 hover:bg-gray-50" onClick={()=>setMenuOpen(false)}>Términos y privacidad</Link>
+                    <div className="border-t my-1" />
+                    <button role="menuitem" className="w-full text-left px-3 py-2 hover:bg-gray-50 text-red-600" onClick={()=>{ setMenuOpen(false); logout() }}>Cerrar sesión</button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -223,7 +273,7 @@ export function ClientShell({ children }) {
         <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <div className="font-semibold mb-2">JD Impressions</div>
-            <div>support@jdimpressions.com</div>
+            <div>jdimpresions@gmail.com</div>
           </div>
           <div>
             <div className="font-semibold mb-2">Tienda</div>
@@ -247,7 +297,7 @@ export function ClientShell({ children }) {
             </ul>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 md:px-6 mt-6">© 2025 JD Impressions. Todos los derechos reservados.</div>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 mt-6"> 2025 JD Impressions. Todos los derechos reservados.</div>
       </footer>
     </div>
   )
@@ -283,7 +333,8 @@ export function AdminLayout() {
       <AccessibilityToolbar />
       <main id="main" className="flex-1 p-6" role="main">
         <Routes>
-          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="/" element={<Navigate to="/inicio" />} />
+          
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
@@ -301,8 +352,12 @@ export function AdminLayout() {
           <Route path="/operativo" element={<ProtectedRoute roles={['manager']}><Operativo /></ProtectedRoute>} />
           <Route path="/ventas" element={<ProtectedRoute roles={['manager']}><Ventas /></ProtectedRoute>} />
           <Route path="/caja" element={<PermAny perms={["invoice:emit","payment:reconcile"]}><Caja /></PermAny>} />
-          <Route path="/soporte" element={<PermissionGuard perm="return:manage"><Soporte /></PermissionGuard>} />
+          <Route path="/soporte" element={<ProtectedRoute roles={['manager']}><Soporte /></ProtectedRoute>} />
           <Route path="/admin/empleados" element={<ProtectedRoute roles={['manager']}><AdminEmployees /></ProtectedRoute>} />
+          <Route path="/admin/productos" element={<ProtectedRoute roles={['manager','bodega','surtido']}><Inventory /></ProtectedRoute>} />
+          <Route path="/admin/productos/nuevo" element={<ProtectedRoute roles={['manager']}><ProductEditor /></ProtectedRoute>} />
+          <Route path="/admin/productos/:id/editar" element={<ProtectedRoute roles={['manager']}><ProductEditor /></ProtectedRoute>} />
+          {/* Backward compatibility old route */}
           <Route path="/inventario" element={<ProtectedRoute roles={['manager','bodega','surtido']}><Inventory /></ProtectedRoute>} />
           <Route path="/settings/password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -317,14 +372,24 @@ export default function App() {
     <AuthProvider>
       {/* Rutas separadas por layout */}
       <Routes>
-        {/* Client storefront layout */}
-        <Route path="/inicio" element={<ProtectedRoute roles={['client','manager']}><ClientShell><ClientHome /></ClientShell></ProtectedRoute>} />
-        <Route path="/tienda" element={<ProtectedRoute roles={['client','manager']}><ClientShell><StoreCatalog /></ClientShell></ProtectedRoute>} />
-        <Route path="/producto/:sku" element={<ProtectedRoute roles={['client','manager']}><ClientShell><ProductDetail /></ClientShell></ProtectedRoute>} />
-        <Route path="/carrito" element={<ProtectedRoute roles={['client','manager']}><ClientShell><Cart /></ClientShell></ProtectedRoute>} />
+        {/* Redirect raíz a landing */}
+        <Route path="/" element={<Navigate to="/inicio" replace />} />
+        {/* Client storefront layout: público como landing */}
+        <Route path="/inicio" element={<ClientShell><ClientHome /></ClientShell>} />
+        <Route path="/productos" element={<ClientShell><StoreCatalog /></ClientShell>} />
+        <Route path="/tienda" element={<ClientShell><StoreCatalog /></ClientShell>} />
+        <Route path="/tienda/:categoria" element={<ClientShell><StoreCatalog /></ClientShell>} />
+        <Route path="/producto-slug/:slug" element={<ClientShell><ProductDetailSlug /></ClientShell>} />
+        <Route path="/producto/:sku" element={<ClientShell><ProductDetail /></ClientShell>} />
+        <Route path="/carrito" element={<ClientShell><Cart /></ClientShell>} />
         <Route path="/mis-pedidos" element={<ProtectedRoute roles={['client','manager']}><ClientShell><MyOrders /></ClientShell></ProtectedRoute>} />
         <Route path="/mis-facturas" element={<ProtectedRoute roles={['client','manager']}><ClientShell><ClientInvoices /></ClientShell></ProtectedRoute>} />
         <Route path="/mis-devoluciones" element={<ProtectedRoute roles={['client','manager']}><ClientShell><ClientReturns /></ClientShell></ProtectedRoute>} />
+        {/* Account pages for client under storefront layout */}
+        <Route path="/cuenta" element={<ProtectedRoute roles={['client','manager']}><ClientShell><Profile /></ClientShell></ProtectedRoute>} />
+        <Route path="/cuenta/password" element={<ProtectedRoute roles={['client','manager']}><ClientShell><ChangePassword /></ClientShell></ProtectedRoute>} />
+        {/* Public legal page within storefront */}
+        <Route path="/terminos" element={<ClientShell><Terms /></ClientShell>} />
 
         {/* Admin and auth layout */}
         <Route path="*" element={<AdminLayout />} />
