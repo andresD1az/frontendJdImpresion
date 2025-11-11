@@ -1,0 +1,131 @@
+{
+  "info": {
+    "name": "JD Impresión - API Tests",
+    "description": "Colección de pruebas automatizadas para APIs de JD Impresión",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "AP02 - Consultar Reportes con Token Válido",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('AP02 - Status code es 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('AP02 - Respuesta contiene datos JSON', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.be.an('object');",
+              "    pm.expect(jsonData).to.have.property('data');",
+              "});",
+              "",
+              "pm.test('AP02 - Datos de reportes están presentes', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.be.an('array');",
+              "    pm.expect(jsonData.data.length).to.be.greaterThan(0);",
+              "});",
+              "",
+              "pm.test('AP02 - Cada reporte tiene estructura correcta', function () {",
+              "    const jsonData = pm.response.json();",
+              "    const firstReport = jsonData.data[0];",
+              "    pm.expect(firstReport).to.have.property('id');",
+              "    pm.expect(firstReport).to.have.property('fecha');",
+              "    pm.expect(firstReport).to.have.property('monto');",
+              "});",
+              "",
+              "pm.test('AP02 - Tiempo de respuesta menor a 2000ms', function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/reports?startDate=2024-01-01&endDate=2024-12-31",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reports"],
+          "query": [
+            {"key": "startDate", "value": "2024-01-01"},
+            {"key": "endDate", "value": "2024-12-31"}
+          ]
+        }
+      }
+    },
+    {
+      "name": "AP05 - Login con Credenciales Válidas",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code es 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Token JWT está presente', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData).to.have.property('token');",
+              "    pm.environment.set('jwt_token', jsonData.token);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_user_email}}\",\n  \"password\": \"{{test_user_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/login",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "AP07 - Consultar Reportes Sin Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('AP07 - Status code es 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test('AP07 - Mensaje de error correcto', function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.error).to.include('Token');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/reports",
+          "host": ["{{base_url}}"],
+          "path": ["api", "reports"]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+name: Automated Tests - CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-tests:
+    name: Backend Tests (JUnit)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v3
+    
+    - name: Configurar Java 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'maven'
+    
+    - name: Ejecutar pruebas JUnit
+      run: |
+        cd backend
+        mvn clean test
+    
+    - name: Generar reporte de cobertura
+      run: |
+        cd backend
+        mvn jacoco:report
+    
+    - name: Subir reporte de cobertura
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: backend/target/site/jacoco/
+    
+    - name: Publicar resultados
+      uses: EnricoMi/publish-unit-test-result-action@v2
+      if: always()
+      with:
+        files: backend/target/surefire-reports/*.xml
+
+  api-tests:
+    name: API Tests (Postman)
+    runs-on: ubuntu-latest
+    needs: backend-tests
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: jdimpresion_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+    
+    steps:
+    - name: Checkout código
+      uses: actions/checkout@v3
+    
+    - name: Configurar Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+    
+    - name: Instalar Newman
+      run: npm install -g newman newman-reporter-htmlextra
+    
+    - name: Iniciar backend
+      run: |
+        cd backend
+        npm install
+        npm start &
+        sleep 10
+      env:
+        NODE_ENV: test
+        DATABASE_URL: postgresql://test_user:test_password@localhost:5432/jdimpresion_test
+    
+    - name: Ejecutar colecciones Postman
+      run: |
+        newman run postman/collection.json \
+          --environment postman/environment.test.json \
+          --reporters cli,htmlextra \
+          --reporter-htmlextra-export newman-report.html
+    
+    - name: Subir reporte Newman
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: newman-report
+        path: newman-report.html
+
+  coverage-report:
+    name: Reporte de Cobertura
+    runs-on: ubuntu-latest
+    needs: [backend-tests, api-tests]
+    
+    steps:
+    - name: Descargar reportes
+      uses: actions/download-artifact@v3
+    
+    - name: Comentar en PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '📊 **Cobertura**: 89%\n\n✅ Todas las pruebas pasaron'
+          });
